@@ -36,9 +36,10 @@ def configPyrebase_auth():
 
 def is_admin():
     if 'user' in request.cookies:
-        print(request.cookies.get('user') == os.getenv("ADMIN_SECRET"))
+        print("isAdmin : " + request.cookies.get('user') == os.getenv("ADMIN_SECRET"))
+        print("isUser : " + request.cookies.get('user') != os.getenv("ADMIN_SECRET"))
         return request.cookies.get('user') == os.getenv("ADMIN_SECRET")
-    print(request.cookies.get('user') == os.getenv("ADMIN_SECRET"))
+    print("not a Admin and not a User : ")
     return False
 
 def get_food_recommender_answer(question):

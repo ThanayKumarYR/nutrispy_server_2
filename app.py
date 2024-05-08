@@ -189,7 +189,6 @@ def recommendation():
         if(count_tokens(question) > 100):
             return jsonify({"response": "Failed", "statusCode": 404,"data": "Request cannot exceed 100 tokens."})
         answer = get_food_recommender_answer(question=str(question))
-        print(answer)
         conversation = {
             "question" : question,
             "answer" : answer,
@@ -208,7 +207,7 @@ def recommendation():
             for conv in excess_conversations:
                 conv.reference.delete()
         
-        return jsonify({"response": "Success", "statusCode": 200, "data": "Conversation stored successfully"})
+        return jsonify({"response": "Success", "statusCode": 200, "data": answer})
     
     elif request.method == 'GET':
         user_conv_ref = db.collection('users').document(user_id).collection('conversations')

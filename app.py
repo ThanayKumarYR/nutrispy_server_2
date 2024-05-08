@@ -158,7 +158,7 @@ def login():
 def logout():
     if 'user' in request.cookies:
         resp = make_response(jsonify({"response": "Success", "statusCode": 200, "data": "Successfully logged out"}))
-        resp.set_cookie('user', expires=0)
+        resp.set_cookie('user',samesite='None', secure=True, httponly=False, expires=0)
         return resp
     else:
         return jsonify({"response":"Failed","statusCode":404,"data":"First login to log out !"})

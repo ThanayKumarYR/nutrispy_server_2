@@ -6,3 +6,6 @@ pyrebase4
 firebase_admin
 werkzeug
 openai
+keras
+requests
+numpy

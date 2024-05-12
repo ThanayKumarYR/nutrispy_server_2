@@ -13,6 +13,9 @@ import time
 from openai import OpenAI
 import re
 import datetime
+from detection import loading_models, prediction
+
+food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model = loading_models()
 
 load_dotenv()
 
@@ -66,8 +69,12 @@ def get_food_recommender_answer(question):
     latest_message = messages[0]
     return latest_message.content[0].text.value
 
+
 Deliveredapp = Flask(__name__)
 CORS(Deliveredapp, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers="*")
+
+UPLOAD_FOLDER = './uploads'
+Deliveredapp.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 Deliveredapp.secret_key = os.getenv("SECRET_KEY")
 
@@ -163,12 +170,19 @@ def logout():
     else:
         return jsonify({"response":"Failed","statusCode":404,"data":"First login to log out !"})
 
-@Deliveredapp.route('/detect', methods=['GET'])
+@Deliveredapp.route('/detect', methods=['GET','POST'])
 def food_detection():
     if is_admin():
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Admins cannot access this route"})
     elif 'user' in request.cookies:
-        return "<h1>Welcome to food detection</h1>", 200
+        if request.method == 'POST':
+            if 'image' not in request.files:
+                return 'there is no image in form!'
+            file1 = request.files['image']
+            path = os.path.join(Deliveredapp.config['UPLOAD_FOLDER'], "image.png")
+            file1.save(path)
+            output = prediction(path,food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model)
+        return jsonify({"response": "Success", "statusCode": 200, "data":output})
     else:
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Login to use this feature"})
 

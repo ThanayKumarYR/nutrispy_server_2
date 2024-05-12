@@ -2,3 +2,5 @@
 old.py
 /client
 key.json
+/images
+/__pycache__

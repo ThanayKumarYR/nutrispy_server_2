@@ -9,4 +9,4 @@ openai
 requests
 numpy
 keras
-tensorflow
+tensorflow[and-cuda]

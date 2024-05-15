@@ -9,7 +9,7 @@ def loading_models():
 
 def prediction(path,food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model,indian_foods_model):
   import numpy as np
-  from keras.preprocessing.image import img_to_array,load_img
+  from tensorflow.keras.utils import img_to_array,load_img
   from keras.applications.mobilenet_v2 import preprocess_input
   from query import query
 

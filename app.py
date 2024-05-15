@@ -15,7 +15,7 @@ import re
 import datetime
 from detection import loading_models, prediction
 
-food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model = loading_models()
+food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model,indian_foods_model = loading_models()
 
 load_dotenv()
 
@@ -181,7 +181,7 @@ def food_detection():
             file1 = request.files['image']
             path = os.path.join(Deliveredapp.config['UPLOAD_FOLDER'], "image.png")
             file1.save(path)
-            output = prediction(path,food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model)
+            output = prediction(path,food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model,indian_foods_model)
         return jsonify({"response": "Success", "statusCode": 200, "data":output})
     else:
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Login to use this feature"})

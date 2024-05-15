@@ -9,4 +9,3 @@ openai
 keras
 requests
 numpy
-tensorflow

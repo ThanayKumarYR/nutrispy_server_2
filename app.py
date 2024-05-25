@@ -152,7 +152,7 @@ def login():
                     else:
                         user_type = "user"
                     resp = make_response(jsonify({"response": "Success", "statusCode": 200, "data": {"userType": user_type, "message": f"Successfully logged in. Welcome {auth_user['email']}"} }))
-                    resp.set_cookie('user', auth_user['localId'],samesite='None', secure=True, httponly=False)
+                    resp.set_cookie('user', auth_user['localId'],samesite='Strict', httponly=False)
                     return resp
                 except Exception as e:
                     return jsonify({"response":"Failed","statusCode":404,"data": "Invalid Password" })
@@ -165,7 +165,7 @@ def login():
 def logout():
     if 'user' in request.cookies:
         resp = make_response(jsonify({"response": "Success", "statusCode": 200, "data": "Successfully logged out"}))
-        resp.set_cookie('user',samesite='None', secure=True, httponly=False, expires=0)
+        resp.set_cookie('user',samesite='Strict', httponly=False, expires=0)
         return resp
     else:
         return jsonify({"response":"Failed","statusCode":404,"data":"First login to log out !"})

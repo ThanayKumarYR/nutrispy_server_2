@@ -5,3 +5,4 @@ key.json
 /images
 /__pycache__
 test.py
+/models

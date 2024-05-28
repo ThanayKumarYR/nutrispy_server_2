@@ -12,7 +12,7 @@ import json
 import time
 from openai import OpenAI
 import re
-import datetime
+from datetime import datetime, timedelta,timezone
 from detection import loading_models, prediction
 
 food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model,indian_foods_model = loading_models()
@@ -185,6 +185,44 @@ def food_detection():
         return jsonify({"response": "Success", "statusCode": 200, "data":output})
     else:
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Login to use this feature"})
+
+
+@Deliveredapp.route('/detect/data', methods=['GET','POST'])
+def data_storage():
+    if is_admin():
+        return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Admins cannot access this route"})
+    elif 'user' in request.cookies:
+        user_id = request.cookies.get('user')
+        configFirebase_admin()
+        db = firestore.client()
+        user_conv_ref = db.collection('users').document(user_id).collection('detection_data')
+
+        # Current time
+        now = datetime.now(timezone.utc)
+
+        if request.method == 'POST':
+            detection_data = request.json
+            detection_data['timestamp'] = now
+            user_conv_ref.add(detection_data)
+            return jsonify({"response": "Success", "statusCode": 200, "data": None})
+        else:
+            # Calculate the time one week ago from now
+            one_week_ago = now - timedelta(days=7)
+
+            # Delete old data
+            old_data_query = user_conv_ref.where('timestamp', '<', one_week_ago)
+            old_data = old_data_query.stream()
+            for data in old_data:
+                user_conv_ref.document(data.id).delete()
+
+            # Fetch the latest data
+            user_conv_query = user_conv_ref.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(10)
+            latest_detection_data = user_conv_query.stream()
+            final_detection_data = [{"id": data.id, **data.to_dict()} for data in latest_detection_data]
+            return jsonify({"response": "Success", "statusCode": 200, "data": final_detection_data})
+    else:
+        return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Login to use this feature"})
+
 
 @Deliveredapp.route('/recommend', methods=['GET','POST'])
 def recommendation():

@@ -45,8 +45,7 @@ def is_admin():
     print("not a Admin and not a User : ")
     return False
 
-def get_food_recommender_answer(question):
-    ASSISTANT_ID = os.getenv("ASSISTANT_ID")
+def get_food_recommender_answer(question,ASSISTANT_ID):
     client = OpenAI()
     thread = client.beta.threads.create(
         messages=[
@@ -204,7 +203,8 @@ def data_storage():
             detection_data = request.json
             detection_data['timestamp'] = now
             user_conv_ref.add(detection_data)
-            return jsonify({"response": "Success", "statusCode": 200, "data": None})
+            answer = get_food_recommender_answer(question=str(detection_data),ASSISTANT_ID = os.getenv("DETECTION_OVERVIEW_ASSISTANT_ID"))
+            return jsonify({"response": "Success", "statusCode": 200, "data": answer})
         else:
             # Calculate the time one week ago from now
             one_week_ago = now - timedelta(days=7)
@@ -240,7 +240,7 @@ def recommendation():
         question = request.json["question"]
         if(count_tokens(question) > 100):
             return jsonify({"response": "Failed", "statusCode": 404,"data": "Request cannot exceed 100 tokens."})
-        answer = get_food_recommender_answer(question=str(question))
+        answer = get_food_recommender_answer(question=str(question),ASSISTANT_ID = os.getenv("NUTRISPY_ASSISTANT_ID"))
         conversation = {
             "question" : question,
             "answer" : answer,

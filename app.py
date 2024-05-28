@@ -201,9 +201,10 @@ def data_storage():
 
         if request.method == 'POST':
             detection_data = request.json
-            detection_data['timestamp'] = now
-            user_conv_ref.add(detection_data)
             answer = get_food_recommender_answer(question=str(detection_data),ASSISTANT_ID = os.getenv("DETECTION_OVERVIEW_ASSISTANT_ID"))
+            detection_data['timestamp'] = now
+            detection_data['answer'] = answer
+            user_conv_ref.add(detection_data)
             return jsonify({"response": "Success", "statusCode": 200, "data": answer})
         else:
             # Calculate the time one week ago from now

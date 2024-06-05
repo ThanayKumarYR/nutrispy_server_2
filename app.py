@@ -301,7 +301,7 @@ def check_session():
 @Deliveredapp.route('/user', methods=['POST'])
 def create_user():
     data = request.json
-    required_fields = ["name", "email", "password", "age", "weight", "calorie_goal", "food_type", "location", "diseases", "profession", "additional_info"]
+    required_fields = ["name", "email", "password", "age", "weight", "calorie_goal"]
     if not all(field in data for field in required_fields):
         return jsonify({"response": "Failed", "statusCode": 400, "data": "Missing required fields"}), 400
     

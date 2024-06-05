@@ -12,12 +12,36 @@ import json
 import time
 from openai import OpenAI
 import re
-from datetime import datetime, timedelta,timezone
+from datetime import datetime, timedelta, timezone
 from detection import loading_models, prediction
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model,indian_foods_model = loading_models()
+food_or_not_food_model, healthy_junk_indian_model, fruits_vegetables_model, indian_foods_model = loading_models()
 
 load_dotenv()
+
+s = URLSafeTimedSerializer(os.getenv("SECRET_KEY"))
+
+def send_verification_email(email, token):
+    sender_email = os.getenv("EMAIL")
+    sender_password = os.getenv("EMAIL_PASSWORD")
+    receiver_email = email
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = receiver_email
+    msg["Subject"] = "Email Verification"
+
+    body = f"Please use the following token to verify your email: {token}"
+    msg.attach(MIMEText(body, "plain"))
+
+    with smtplib.SMTP("smtp.outlook.com", 587) as server:
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
 
 def count_tokens(sentence):
     pattern = r'\w+|[^\w\s]'
@@ -45,7 +69,7 @@ def is_admin():
     print("not a Admin and not a User : ")
     return False
 
-def get_food_recommender_answer(question,ASSISTANT_ID):
+def get_recommender_answer(question, ASSISTANT_ID):
     client = OpenAI()
     thread = client.beta.threads.create(
         messages=[
@@ -67,7 +91,6 @@ def get_food_recommender_answer(question,ASSISTANT_ID):
     messages = message_response.data
     latest_message = messages[0]
     return latest_message.content[0].text.value
-
 
 Deliveredapp = Flask(__name__)
 CORS(Deliveredapp, resources={r"/*": {"origins": "*"}}, supports_credentials=True, allow_headers="*")
@@ -91,7 +114,7 @@ def contactFirebase():
         contact_ref.set(data)
         return jsonify({"response": "Success", "statusCode": 201, "data": "Data has been sent"})
 
-@Deliveredapp.route('/contact', methods=['GET','DELETE'])
+@Deliveredapp.route('/contact', methods=['GET', 'DELETE'])
 def contact_operations():
     if not is_admin():
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Admin privileges required"})
@@ -151,7 +174,7 @@ def login():
                     else:
                         user_type = "user"
                     resp = make_response(jsonify({"response": "Success", "statusCode": 200, "data": {"userType": user_type, "message": f"Successfully logged in. Welcome {auth_user['email']}"} }))
-                    resp.set_cookie('user', auth_user['localId'],samesite='Strict', httponly=False)
+                    resp.set_cookie('user', auth_user['localId'], samesite='Strict', httponly=False)
                     return resp
                 except Exception as e:
                     return jsonify({"response":"Failed","statusCode":404,"data": "Invalid Password" })
@@ -164,12 +187,12 @@ def login():
 def logout():
     if 'user' in request.cookies:
         resp = make_response(jsonify({"response": "Success", "statusCode": 200, "data": "Successfully logged out"}))
-        resp.set_cookie('user',samesite='Strict', httponly=False, expires=0)
+        resp.set_cookie('user', samesite='Strict', httponly=False, expires=0)
         return resp
     else:
         return jsonify({"response":"Failed","statusCode":404,"data":"First login to log out !"})
 
-@Deliveredapp.route('/detect', methods=['GET','POST'])
+@Deliveredapp.route('/detect', methods=['GET', 'POST'])
 def food_detection():
     if is_admin():
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Admins cannot access this route"})
@@ -180,13 +203,12 @@ def food_detection():
             file1 = request.files['image']
             path = os.path.join(Deliveredapp.config['UPLOAD_FOLDER'], "image.png")
             file1.save(path)
-            output = prediction(path,food_or_not_food_model,healthy_junk_indian_model,fruits_vegetables_model,indian_foods_model)
-        return jsonify({"response": "Success", "statusCode": 200, "data":output})
+            output = prediction(path, food_or_not_food_model, healthy_junk_indian_model, fruits_vegetables_model, indian_foods_model)
+        return jsonify({"response": "Success", "statusCode": 200, "data": output})
     else:
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Login to use this feature"})
 
-
-@Deliveredapp.route('/detect/data', methods=['GET','POST'])
+@Deliveredapp.route('/detect/data', methods=['GET', 'POST'])
 def data_storage():
     if is_admin():
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Admins cannot access this route"})
@@ -201,7 +223,7 @@ def data_storage():
 
         if request.method == 'POST':
             detection_data = request.json
-            answer = get_food_recommender_answer(question=str(detection_data),ASSISTANT_ID = os.getenv("DETECTION_OVERVIEW_ASSISTANT_ID"))
+            answer = get_recommender_answer(question=str(detection_data), ASSISTANT_ID=os.getenv("DETECTION_OVERVIEW_ASSISTANT_ID"))
             detection_data['timestamp'] = now
             detection_data['answer'] = answer
             user_conv_ref.add(detection_data)
@@ -224,8 +246,7 @@ def data_storage():
     else:
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Login to use this feature"})
 
-
-@Deliveredapp.route('/recommend', methods=['GET','POST'])
+@Deliveredapp.route('/recommend', methods=['GET', 'POST'])
 def recommendation():
     if is_admin():
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Admins cannot access this route"})
@@ -239,13 +260,13 @@ def recommendation():
     
     if request.method == 'POST':
         question = request.json["question"]
-        if(count_tokens(question) > 100):
-            return jsonify({"response": "Failed", "statusCode": 404,"data": "Request cannot exceed 100 tokens."})
-        answer = get_food_recommender_answer(question=str(question),ASSISTANT_ID = os.getenv("NUTRISPY_ASSISTANT_ID"))
+        if count_tokens(question) > 100:
+            return jsonify({"response": "Failed", "statusCode": 404, "data": "Request cannot exceed 100 tokens."})
+        answer = get_recommender_answer(question=str(question), ASSISTANT_ID=os.getenv("NUTRISPY_ASSISTANT_ID"))
         conversation = {
-            "question" : question,
-            "answer" : answer,
-            "timestamp": datetime.datetime.now()
+            "question": question,
+            "answer": answer,
+            "timestamp": datetime.now()
         }
         
         user_conv_ref = db.collection('users').document(user_id).collection('conversations')
@@ -273,9 +294,87 @@ def recommendation():
 @Deliveredapp.route('/check_session')
 def check_session():
     if 'user' in request.cookies:
-        return jsonify({"User ID" : request.cookies.get('user')})
+        return jsonify({"User ID": request.cookies.get('user')})
     else:
-        return jsonify({"User ID" : None})
+        return jsonify({"User ID": None})
+
+@Deliveredapp.route('/user', methods=['POST'])
+def create_user():
+    data = request.json
+    required_fields = ["name", "email", "password", "age", "weight", "calorie_goal", "food_type", "location", "diseases", "profession", "additional_info"]
+    if not all(field in data for field in required_fields):
+        return jsonify({"response": "Failed", "statusCode": 400, "data": "Missing required fields"}), 400
+    
+    email = data['email']
+    token = s.dumps(email, salt='email-confirm')
+    
+    # Send verification email
+    send_verification_email(email, token)
+    
+    return jsonify({"response": "Success", "statusCode": 200, "data": "Verification email sent. Please check your inbox."})
+
+@Deliveredapp.route('/user/verify/<token>', methods=['GET'])
+def verify_email(token):
+    try:
+        email = s.loads(token, salt='email-confirm', max_age=3600)
+    except (SignatureExpired, BadSignature):
+        return jsonify({"response": "Failed", "statusCode": 400, "data": "Verification token is invalid or expired."})
+    
+    configFirebase_admin()
+    db = firestore.client()
+    
+    data = request.args.to_dict()
+    data['email'] = email
+    answer = get_recommender_answer(question=str(data), ASSISTANT_ID=os.getenv("USER_HEALTH_RECOMMENDATION_ASSISTANT_ID"))
+    data['recommendation'] = answer
+    
+    user_ref = db.collection('users').document()
+    user_ref.set(data)
+    
+    return jsonify({"response": "Success", "statusCode": 200, "data": answer})
+
+@Deliveredapp.route('/user', methods=['GET'])
+def get_user_data():
+    if 'user' not in request.cookies:
+        return jsonify({"response": "Failed", "statusCode": 401, "data": "User not logged in"})
+    
+    user_id = request.cookies.get('user')
+    
+    configFirebase_admin()
+    db = firestore.client()
+    user_ref = db.collection('users').document(user_id)
+    user_data = user_ref.get()
+    
+    if user_data.exists:
+        return jsonify({"response": "Success", "statusCode": 200, "data": user_data.to_dict()})
+    else:
+        return jsonify({"response": "Failed", "statusCode": 404, "data": "User not found"})
+
+@Deliveredapp.route('/user', methods=['PUT'])
+def update_user_data():
+    if 'user' not in request.cookies:
+        return jsonify({"response": "Failed", "statusCode": 401, "data": "User not logged in"})
+    
+    user_id = request.cookies.get('user')
+    data = request.json
+    
+    configFirebase_admin()
+    db = firestore.client()
+    user_ref = db.collection('users').document(user_id)
+    user_data = user_ref.get()
+    
+    if user_data.exists:
+        updated_data = user_data.to_dict()
+        updated_data.update(data)
+        
+        answer = get_recommender_answer(question=str(updated_data), ASSISTANT_ID=os.getenv("USER_HEALTH_RECOMMENDATION_ASSISTANT_ID"))
+        updated_data['recommendation'] = answer
+        
+        user_ref.update(updated_data)
+        
+        return jsonify({"response": "Success", "statusCode": 200, "data": updated_data})
+    else:
+        return jsonify({"response": "Failed", "statusCode": 404, "data": "User not found"})
 
 app = Flask(__name__)
 

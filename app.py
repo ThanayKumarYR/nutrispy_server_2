@@ -246,6 +246,43 @@ def data_storage():
     else:
         return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Login to use this feature"})
 
+
+@Deliveredapp.route('/exercise/data', methods=['GET', 'POST'])
+def exercise_data_storage():
+    if is_admin():
+        return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Admins cannot access this route"})
+    elif 'user' in request.cookies:
+        user_id = request.cookies.get('user')
+        configFirebase_admin()
+        db = firestore.client()
+        user_exercise_ref = db.collection('users').document(user_id).collection('exercise_data')
+
+        # Current time
+        now = datetime.now(timezone.utc)
+
+        if request.method == 'POST':
+            exercise_data = request.json
+            exercise_data['timestamp'] = now
+            user_exercise_ref.add(exercise_data)
+            return jsonify({"response": "Success", "statusCode": 200, "data": exercise_data})
+        else:
+            # Calculate the time one week ago from now
+            one_week_ago = now - timedelta(days=7)
+
+            # Delete old data
+            old_data_query = user_exercise_ref.where('timestamp', '<', one_week_ago)
+            old_data = old_data_query.stream()
+            for data in old_data:
+                user_exercise_ref.document(data.id).delete()
+
+            # Fetch the latest data
+            user_exercise_query = user_exercise_ref.order_by('timestamp', direction=firestore.Query.DESCENDING).limit(10)
+            latest_exercise_data = user_exercise_query.stream()
+            final_exercise_data = [{"id": data.id, **data.to_dict()} for data in latest_exercise_data]
+            return jsonify({"response": "Success", "statusCode": 200, "data": final_exercise_data})
+    else:
+        return jsonify({"response": "unauthorized", "statusCode": 401, "data": "Login to use this feature"})
+
 @Deliveredapp.route('/recommend', methods=['GET', 'POST'])
 def recommendation():
     if is_admin():
